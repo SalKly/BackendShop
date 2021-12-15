@@ -174,10 +174,11 @@ app.post("/search", function (req, res) {
   });
 });
 
-app.listen(process.env.PORT, function () {
-  console.log("server is running");
-});
-
+let port = process.env.PORT;
+if (port == null || port == "") {
+  port = 3000;
+}
+app.listen(port);
 // async function main() {
 //   var { MongoClient } = require("mongodb");
 //   var url =
