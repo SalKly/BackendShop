@@ -6,8 +6,10 @@ var app = express();
 var alert = require("alert");
 const mongoose = require("mongoose");
 const e = require("express");
-mongoose.connect("mongodb+srv://admin:admin@cluster0.yfdad.mongodb.net/appDB");
-app.use(bodyParser.urlencoded({ extended: true }));
+const session = require("express-session");
+const passport = require("passport");
+const passportLocalMongoose = require("passport-local-mongoose");
+const flash = require("connect-flash");
 
 // view engine setup
 app.set("views", path.join(__dirname, "views"));
@@ -15,6 +17,60 @@ app.set("view engine", "ejs");
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(express.static(path.join(__dirname, "public")));
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(flash());
+
+// INITIALIZE SESSIONS
+app.use(
+  session({
+    secret: "the app secrete.",
+    resave: false,
+    saveUninitialized: false,
+  })
+);
+// INITIALAIZE PASSPORT
+app.use(passport.initialize());
+app.use(passport.session());
+
+mongoose.connect("mongodb+srv://admin:admin@cluster0.yfdad.mongodb.net/appDB");
+
+const accountsSchema = mongoose.Schema({
+  username: String,
+  pass: String,
+  cart: [String],
+});
+
+var options = {
+  errorMessages: {
+    MissingPasswordError: "No password was given",
+    AttemptTooSoonError: "Account is currently locked. Try again later",
+    TooManyAttemptsError: "Account locked due to too many failed login attempts",
+    NoSaltValueStoredError: "Authentication not possible. No salt value stored",
+    IncorrectPasswordError: "Password or username are incorrect",
+    IncorrectUsernameError: "Password or username are incorrect",
+    MissingUsernameError: "No username was given",
+    UserExistsError: "A user with the given username is already registered",
+  },
+};
+
+accountsSchema.plugin(passportLocalMongoose, options);
+
+const Account = mongoose.model("account", accountsSchema);
+passport.use(Account.createStrategy());
+passport.serializeUser(function (user, done) {
+  done(null, user.id);
+});
+
+passport.deserializeUser(function (id, done) {
+  Account.findById(id, function (err, user) {
+    done(err, user);
+  });
+});
+
+const cartSchema = mongoose.Schema({
+  item: String,
+});
+// const Cart = mongoose.model("item", cartSchema);
 
 const searchSchema = mongoose.Schema({
   page: String,
@@ -47,53 +103,112 @@ const Search = mongoose.model("page", searchSchema);
 //     console.log(err);
 //   }
 // });
-const accountsSchema = mongoose.Schema({
-  username: String,
-  pass: String,
-});
-const cartSchema = mongoose.Schema({
-  item: String,
-});
-const Cart = mongoose.model("item", cartSchema);
-const Account = mongoose.model("account", accountsSchema);
 
 app.get("/", function (req, res) {
   res.render("login");
 });
 app.get("/galaxy", function (req, res) {
-  res.render("galaxy");
+  if (req.isAuthenticated()) {
+    res.render("galaxy");
+  } else {
+    res.redirect("/");
+  }
 });
 app.get("/iphone", function (req, res) {
-  res.render("iphone");
+  if (req.isAuthenticated()) {
+    res.render("iphone");
+  } else {
+    res.redirect("/");
+  }
 });
 app.get("/leaves", function (req, res) {
-  res.render("leaves");
+  if (req.isAuthenticated()) {
+    res.render("leaves");
+  } else {
+    res.redirect("/");
+  }
 });
 app.get("/sun", function (req, res) {
-  res.render("sun");
+  if (req.isAuthenticated()) {
+    res.render("sun");
+  } else {
+    res.redirect("/");
+  }
 });
-
+app.get("/home", function (req, res) {
+  if (req.isAuthenticated()) {
+    res.render("home");
+  } else {
+    res.redirect("/");
+  }
+});
 app.get("/boxing", function (req, res) {
-  res.render("boxing");
+  if (req.isAuthenticated()) {
+    res.render("boxing");
+  } else {
+    res.redirect("/");
+  }
 });
 app.get("/tennis", function (req, res) {
-  res.render("tennis");
+  if (req.isAuthenticated()) {
+    res.render("tennis");
+  } else {
+    res.redirect("/");
+  }
 });
 app.get("/phones", function (req, res) {
-  res.render("phones");
+  if (req.isAuthenticated()) {
+    res.render("phones");
+  } else {
+    res.redirect("/");
+  }
 });
 app.get("/books", function (req, res) {
-  res.render("books");
+  if (req.isAuthenticated()) {
+    res.render("books");
+  } else {
+    res.redirect("/");
+  }
 });
 app.get("/sports", function (req, res) {
-  res.render("sports");
+  if (req.isAuthenticated()) {
+    res.render("sports");
+  } else {
+    res.redirect("/");
+  }
 });
 app.get("/cart", function (req, res) {
-  Cart.find({}, function (err, c) {
+  if (req.isAuthenticated()) {
+    Account.findById(req.user.id, function (err, found) {
+      if (err) {
+        console.log(err);
+      } else {
+        if (found) {
+          if (found.cart !== null) {
+            console.log(found.cart);
+            res.render("cart", { cart: found.cart });
+          }
+        }
+      }
+    });
+  } else {
+    res.redirect("/");
+  }
+});
+app.post("/cart", function (req, res) {
+  const cartitem = req.body.b;
+  Account.findById(req.user.id, function (err, found) {
     if (err) {
       console.log(err);
     } else {
-      res.render("cart", { cart: c });
+      if (found) {
+        found.cart.push(cartitem);
+        console.log(found.cart);
+
+        found.save(function () {
+          res.redirect("/" + req.body.b);
+        });
+      }
     }
   });
 });
@@ -103,55 +218,53 @@ app.get("/registration", function (req, res) {
 });
 
 app.post("/login", function (req, res) {
-  let flag = false;
-  Account.find({}, function (err, account) {
+
+  if (!req.body.username) {
+    alert("please insert a username")
+    res.redirect("/")
+  };
+  if (!req.body.password) {
+    alert("please insert a password")
+    res.redirect("/")
+  };
+
+  const account = new Account({
+    username: req.body.username,
+    pass: req.body.password,
+  });
+
+
+  req.login(account, function (err) {
+
     if (err) {
-      console.log(err);
+      res.send(err)
+
     } else {
-      account.forEach(function (a) {
-        if (a.username == req.body.username && a.pass == req.body.password) {
-          flag = true;
-        }
+      passport.authenticate("local")(req, res, function () {
+
+        res.redirect("home");
       });
-      if (flag == false) {
-        alert("wrong username or password");
-      } else {
-        res.render("home");
-      }
     }
   });
 });
 
 app.post("/register", function (req, res) {
-  Account.find({}, function (err, account) {
-    let flag = true;
-    if (err) {
-      console.log(err);
-    } else {
-      account.forEach(function (a) {
-        if (a.username === req.body.username) {
-          flag = false;
-        }
-      });
-      if (flag == false) {
-        alert("Username is already taken");
+  let flage = false;
+  Account.register(
+    { username: req.body.username },
+    req.body.password,
+    function (err, result) {
+      if (err) {
+        alert("" + err.message);
+        res.redirect("/registration")
       } else {
-        const a1 = new Account({
-          username: req.body.username,
-          pass: req.body.password,
+        passport.authenticate("local")(req, res, function () {
+
+          res.redirect("/");
         });
-        a1.save();
-        res.redirect("/");
       }
     }
-  });
-});
-
-app.post("/cart", function (req, res) {
-  const c1 = new Cart({
-    item: req.body.b,
-  });
-  c1.save();
+  );
 });
 
 app.post("/removeC", function (req, res) {
@@ -164,14 +277,38 @@ app.post("/removeC", function (req, res) {
   });
 });
 
+// app.get("/search", function (req, res) {
+//   if (req.isAuthenticated()) {
+//     res.render("searchresults")
+//   }
+//   else {
+//     res.redirect("/")
+//   }
+
+// })
+
+app.get("/itemsF/:ToGo", function (req, res) {
+  res.redirect("/" + req.params.ToGo);
+});
+
 app.post("/search", function (req, res) {
-  Search.findOne({ page: req.body.Search }, function (err, f) {
-    if (err) {
-      console.log(err);
-    } else {
-      res.redirect("/" + f.page);
+  Search.find(
+    { page: { $regex: req.body.Search, $options: "i" } },
+    function (err, found) {
+      if (err) {
+        console.log(err);
+      } else {
+        // if (found) {
+        if (req.isAuthenticated) {
+          res.render("searchresults", { items: found });
+        } else {
+          res.redirect("/");
+        }
+
+        // }
+      }
     }
-  });
+  );
 });
 
 let port = process.env.PORT;

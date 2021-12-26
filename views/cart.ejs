@@ -55,20 +55,9 @@
         </form>
       </div>
     </nav>
-    <%cart.forEach(function(c){%>
+    <%for(let i=0;i<cart.length;i++){%>
+    <img id="image" src="/<%=cart[i]%>.jpg" width="193" height="300" />
 
-    <img id="image" src="/<%=c.item%>.jpg" width="193" height="300" />
-    <form action="/removeC" method="post">
-      <button
-        class="btn btn-secondary ml-3"
-        type="submit"
-        name="delete"
-        value="<%=c.id%> "
-      >
-        Remove from cart
-      </button>
-    </form>
-
-    <%})%>
+    <%}%>
   </body>
 </html>
