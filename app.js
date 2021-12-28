@@ -26,6 +26,7 @@ app.use(
     secret: "the app secrete.",
     resave: false,
     saveUninitialized: false,
+    cookie: { maxAge: 900000 },
   })
 );
 // INITIALAIZE PASSPORT
@@ -78,10 +79,10 @@ const searchSchema = mongoose.Schema({
 
 const searcha = [
   {
-    page: "sun",
+    page: "The Sun and Her Flowers",
   },
   {
-    page: "leaves",
+    page: "Leaves of Grasses",
   },
   {
     page: "tennis",
@@ -98,11 +99,35 @@ const searcha = [
 ];
 
 const Search = mongoose.model("page", searchSchema);
-// Search.insertMany(searcha, function (err) {
-//   if (err) {
-//     console.log(err);
-//   }
-// });
+
+if (Search.findOne({}, function (err, found) {
+  if (err) {
+    console.log(err);
+    console.log("error first  in find");
+  }
+  else {
+    if (found == null) {
+      console.log("reached the if condition");
+
+      Search.insertMany(searcha, function (err) {
+        if (err) {
+          console.log(err);
+        }
+        else {
+          console.log("done adding");
+
+        }
+      });
+
+    }
+    else {
+      console.log("already added");
+
+
+    }
+  }
+}));
+
 
 app.get("/", function (req, res) {
   res.render("login");
@@ -196,18 +221,31 @@ app.get("/cart", function (req, res) {
   }
 });
 app.post("/cart", function (req, res) {
+  let flag = true;
   const cartitem = req.body.b;
   Account.findById(req.user.id, function (err, found) {
     if (err) {
       console.log(err);
     } else {
       if (found) {
-        found.cart.push(cartitem);
-        console.log(found.cart);
+        for (let i = 0; i < found.cart.length; i++) {
+          if (found.cart[i] == cartitem) {
+            flag = false;
 
-        found.save(function () {
-          res.redirect("/" + req.body.b);
-        });
+          }
+        }
+        if (flag == false) {
+          alert("item already added to the cart");
+        }
+        else {
+          found.cart.push(cartitem);
+
+          found.save(function () {
+            res.redirect("/" + req.body.b);
+          });
+
+        }
+
       }
     }
   });
@@ -220,6 +258,7 @@ app.get("/registration", function (req, res) {
 app.post("/login", function (req, res) {
 
   if (!req.body.username) {
+
     alert("please insert a username")
     res.redirect("/")
   };
@@ -260,7 +299,7 @@ app.post("/register", function (req, res) {
       } else {
         passport.authenticate("local")(req, res, function () {
 
-          res.redirect("/");
+          res.redirect("home");
         });
       }
     }
@@ -300,6 +339,21 @@ app.post("/search", function (req, res) {
       } else {
         // if (found) {
         if (req.isAuthenticated) {
+          for (let i = 0; i < found.length; i++) {
+            if (found[i].page == "The Sun and Her Flowers") {
+              found[i].page = "sun";
+              console.log("edited the sun");
+            }
+            else {
+              if (found[i].page == "Leaves of Grasses") {
+                found[i].page = "leaves";
+                console.log("edited the leaves");
+              }
+
+
+            }
+          }
+
           res.render("searchresults", { items: found });
         } else {
           res.redirect("/");
