@@ -236,6 +236,8 @@ app.post("/cart", function (req, res) {
         }
         if (flag == false) {
           alert("item already added to the cart");
+          res.redirect("/" + req.body.b);
+
         }
         else {
           found.cart.push(cartitem);
@@ -243,6 +245,7 @@ app.post("/cart", function (req, res) {
           found.save(function () {
             res.redirect("/" + req.body.b);
           });
+          alert("item is successfully  added to your cart ");
 
         }
 
